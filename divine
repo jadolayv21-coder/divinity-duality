@@ -7,8 +7,7 @@ if not _G.DIVINE_HOOK then
         if game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("EN") then return end
         loadstring(game:HttpGet(_G.DIVINE_SCRIPT))()
     end)
-end
--- Divine Duality Elemental | Essence Notifier + Auto Server Hopper
+end-- Divine Duality Elemental | Essence Notifier + Auto Server Hopper
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
 local HttpService=game:GetService("HttpService")
