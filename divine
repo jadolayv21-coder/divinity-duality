@@ -279,6 +279,7 @@ local function serverHop()
                         HopBtn.Text="✅  FOUND HERE!"
                         HopBtn.TextColor3=Color3.fromRGB(80,255,120)
                         hopping=false
+return
                         task.delay(3,function()
                             HopBtn.Text="🔍  SERVER HOP"
                             HopBtn.TextColor3=Color3.fromRGB(180,180,220)
@@ -330,8 +331,39 @@ local function serverHop()
     end)
 end
 
-HopBtn.MouseButton1Click:Connect(serverHop)
+HopBtn.MouseButton1Click:Connect(function()
+    if hopping then
+        hopping = false
+        HopBtn.Text = "🔍  SERVER HOP"
+        HopBtn.TextColor3 = Color3.fromRGB(180,180,220)
+    else
+        serverHop()
+    end
+end)
+HopBtn.TouchTap:Connect(function()
+    if hopping then
+        hopping = false
+        HopBtn.Text = "🔍  SERVER HOP"
+        HopBtn.TextColor3 = Color3.fromRGB(180,180,220)
+    else
+        serverHop()
+    end
+end)
+
+-- Auto start hopping on load, stop when essence found
+task.spawn(function()
+    task.wait(4) -- wait for game to fully load
+    local found = false
+    for _, obj in ipairs(SE:GetChildren()) do
+        if getRarity(obj.Name) then found = true break end
+    end
+    if not found then
+        serverHop()
+    else
+        HopBtn.Text = "✅  FOUND HERE!"
+        HopBtn.TextColor3 = Color3.fromRGB(80,255,120)
+    end
+end)
 -- Mobile tap support
-HopBtn.TouchTap:Connect(serverHop)
 
 print("✅ [EssenceNotifier] Ready — drag the panel to move it | Press SERVER HOP to find essences")
