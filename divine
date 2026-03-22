@@ -1,22 +1,4 @@
-task.spawn(function()
-    task.wait(2)
-    game:GetService("TeleportService").TeleportInitFailed:Connect(function()
-        task.wait(3)
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
-    end)
-end)
-
--- Re-run on teleport arrive
-if not _G.ENLoaded then
-    _G.ENLoaded = true
-    pcall(function()
-        game:GetService("TeleportService").LocalPlayerArrivedFromTeleport:Connect(function()
-            task.wait(3)
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
-        end)
-    end)
-end
--- Divine Duality Elemental | Essence Notifier + Server Hopper
+-- Divine Duality Elemental | Essence Notifier + Auto Server Hopper
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
 local HttpService=game:GetService("HttpService")
@@ -25,6 +7,18 @@ local UIS=game:GetService("UserInputService")
 local LocalPlayer=Players.LocalPlayer
 local PlayerGui=LocalPlayer:WaitForChild("PlayerGui")
 
+-- Auto re-execute after server hop
+if not _G.ENLoaded then
+    _G.ENLoaded=true
+    pcall(function()
+        TeleportService.LocalPlayerArrivedFromTeleport:Connect(function()
+            task.wait(4)
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
+        end)
+    end)
+end
+
+-- Whitelist
 local LEGENDARY={Aether=true,Arcane=true,Aurora=true,Digital=true,Lunar=true}
 local DIVINE={Destruction=true,Cosmic=true,Spatial=true,Starscourge=true,Time=true}
 local COLOR={Legendary=Color3.fromRGB(255,170,0),Divine=Color3.fromRGB(180,80,255)}
@@ -41,14 +35,14 @@ if PlayerGui:FindFirstChild("EN") then PlayerGui:FindFirstChild("EN"):Destroy() 
 local SG=Instance.new("ScreenGui")
 SG.Name="EN" SG.ResetOnSpawn=false SG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling SG.Parent=PlayerGui
 
--- ══ PANEL ══
+-- Panel
 local Panel=Instance.new("Frame")
 Panel.Name="Panel" Panel.Size=UDim2.new(0,240,0,36) Panel.Position=UDim2.new(0,12,1,-220)
 Panel.BackgroundColor3=Color3.fromRGB(10,10,16) Panel.BackgroundTransparency=0.1 Panel.BorderSizePixel=0 Panel.Parent=SG
 Instance.new("UICorner",Panel).CornerRadius=UDim.new(0,10)
 local us=Instance.new("UIStroke",Panel) us.Color=Color3.fromRGB(80,80,120) us.Thickness=1 us.Transparency=0.5
 
--- ══ DRAG LOGIC ══
+-- Drag
 local dragging,dragStart,startPos=false,nil,nil
 Panel.InputBegan:Connect(function(i)
     if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -61,13 +55,13 @@ Panel.InputEnded:Connect(function(i)
     end
 end)
 UIS.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+    if dragging and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
         local d=i.Position-dragStart
         Panel.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
     end
 end)
 
--- ══ HEADER ══
+-- Header
 local Hdr=Instance.new("Frame")
 Hdr.Size=UDim2.new(1,0,0,36) Hdr.BackgroundColor3=Color3.fromRGB(20,20,32) Hdr.BorderSizePixel=0 Hdr.Parent=Panel
 Instance.new("UICorner",Hdr).CornerRadius=UDim.new(0,10)
@@ -81,55 +75,51 @@ dot.Size=UDim2.new(0,7,0,7) dot.Position=UDim2.new(1,-14,0.5,-3)
 dot.BackgroundColor3=Color3.fromRGB(80,255,120) dot.BorderSizePixel=0 dot.Parent=Hdr
 Instance.new("UICorner",dot).CornerRadius=UDim.new(1,0)
 
--- ══ EMPTY LABEL ══
+-- Empty label
 local EL=Instance.new("TextLabel")
 EL.Name="Empty" EL.Size=UDim2.new(1,-12,0,24) EL.Position=UDim2.new(0,8,0,42)
 EL.BackgroundTransparency=1 EL.Font=Enum.Font.Gotham EL.TextSize=10
 EL.TextColor3=Color3.fromRGB(100,100,120) EL.Text="No legendary/divine essences active"
 EL.TextXAlignment=Enum.TextXAlignment.Left EL.Parent=Panel
 
--- ══ ESSENCE LIST ══
+-- Essence list
 local List=Instance.new("Frame")
 List.Size=UDim2.new(1,-8,0,0) List.Position=UDim2.new(0,4,0,40)
 List.BackgroundTransparency=1 List.ClipsDescendants=true List.Parent=Panel
 local UL=Instance.new("UIListLayout") UL.SortOrder=Enum.SortOrder.LayoutOrder UL.Padding=UDim.new(0,3) UL.Parent=List
 
--- ══ HOP BUTTON ══
+-- Hop button
 local HopBtn=Instance.new("TextButton")
-HopBtn.Name="HopBtn" HopBtn.Size=UDim2.new(1,-8,0,28) HopBtn.Position=UDim2.new(0,4,0,0)
+HopBtn.Name="HopBtn" HopBtn.Size=UDim2.new(1,-8,0,28) HopBtn.Position=UDim2.new(0,4,0,68)
 HopBtn.BackgroundColor3=Color3.fromRGB(30,30,50) HopBtn.BorderSizePixel=0
 HopBtn.Font=Enum.Font.GothamBold HopBtn.TextSize=11 HopBtn.TextColor3=Color3.fromRGB(180,180,220)
-HopBtn.Text="🔍  SERVER HOP" HopBtn.Parent=Panel
+HopBtn.Text="⏳  AUTO HOPPING..." HopBtn.Parent=Panel
 Instance.new("UICorner",HopBtn).CornerRadius=UDim.new(0,6)
-local hs=Instance.new("UIStroke",HopBtn) hs.Color=Color3.fromRGB(80,80,140) hs.Thickness=1
+Instance.new("UIStroke",HopBtn).Color=Color3.fromRGB(80,80,140)
 
 local EH=44
 local function resize()
     local n=#List:GetChildren()-1
-    local hopH=32
     if n<=0 then
         EL.Visible=true List.Size=UDim2.new(1,-8,0,0)
-        List.Position=UDim2.new(0,4,0,40)
         HopBtn.Position=UDim2.new(0,4,0,68)
         Panel.Size=UDim2.new(0,240,0,104)
     else
         EL.Visible=false
         local h=n*EH+(n-1)*3
         List.Size=UDim2.new(1,-8,0,h)
-        List.Position=UDim2.new(0,4,0,40)
         HopBtn.Position=UDim2.new(0,4,0,44+h+4)
-        Panel.Size=UDim2.new(0,240,0,44+h+hopH+12)
+        Panel.Size=UDim2.new(0,240,0,44+h+36+8)
     end
 end
 resize()
 
--- ══ POPUP ══
+-- Popup
 local function showPopup(name,rarity)
     local color=COLOR[rarity]
     local p=Instance.new("Frame")
     p.Size=UDim2.new(0,280,0,56) p.Position=UDim2.new(1,20,0,16)
-    p.BackgroundColor3=Color3.fromRGB(12,12,20) p.BackgroundTransparency=0.1
-    p.BorderSizePixel=0 p.Parent=SG
+    p.BackgroundColor3=Color3.fromRGB(12,12,20) p.BackgroundTransparency=0.1 p.BorderSizePixel=0 p.Parent=SG
     Instance.new("UICorner",p).CornerRadius=UDim.new(0,8)
     local b=Instance.new("Frame") b.Size=UDim2.new(0,4,1,0) b.BackgroundColor3=color b.BorderSizePixel=0 b.Parent=p
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,4)
@@ -149,11 +139,11 @@ local function showPopup(name,rarity)
     end)
 end
 
--- ══ ESP ══
+-- ESP
 local function addESP(obj,rarity)
     local color=COLOR[rarity]
-    local adorn=obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-    if not adorn then return nil end
+    local adorn=obj:IsA("Model") and(obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+    if not adorn then return nil,nil end
     local bb=Instance.new("BillboardGui")
     bb.Size=UDim2.new(0,140,0,36) bb.StudsOffset=Vector3.new(0,5,0)
     bb.AlwaysOnTop=true bb.Adornee=adorn bb.Parent=workspace
@@ -173,7 +163,7 @@ local function addESP(obj,rarity)
     return bb,dl
 end
 
--- ══ PANEL ROW ══
+-- Panel row
 local function addRow(name,rarity)
     local color=COLOR[rarity]
     local row=Instance.new("Frame")
@@ -193,18 +183,16 @@ local function addRow(name,rarity)
     local nl=Instance.new("TextLabel")
     nl.Size=UDim2.new(0,140,0,18) nl.Position=UDim2.new(0,8,0,21)
     nl.BackgroundTransparency=1 nl.Font=Enum.Font.GothamBold nl.TextSize=13
-    nl.TextColor3=Color3.fromRGB(240,240,255) nl.Text=name
-    nl.TextXAlignment=Enum.TextXAlignment.Left nl.Parent=row
+    nl.TextColor3=Color3.fromRGB(240,240,255) nl.Text=name nl.TextXAlignment=Enum.TextXAlignment.Left nl.Parent=row
     local dl=Instance.new("TextLabel")
     dl.Name="Dist" dl.Size=UDim2.new(0,70,1,0) dl.Position=UDim2.new(1,-74,0,0)
     dl.BackgroundTransparency=1 dl.Font=Enum.Font.GothamBold dl.TextSize=12
-    dl.TextColor3=Color3.fromRGB(180,180,200) dl.Text="-- m"
-    dl.TextXAlignment=Enum.TextXAlignment.Right dl.Parent=row
+    dl.TextColor3=Color3.fromRGB(180,180,200) dl.Text="-- m" dl.TextXAlignment=Enum.TextXAlignment.Right dl.Parent=row
     resize()
     return row,dl
 end
 
--- ══ SOUND ══
+-- Sound
 local function playAlert(rarity)
     local s=Instance.new("Sound")
     s.SoundId=rarity=="Divine" and"rbxassetid://9118820654" or"rbxassetid://4959946022"
@@ -212,11 +200,20 @@ local function playAlert(rarity)
     game:GetService("Debris"):AddItem(s,4)
 end
 
--- ══ TRACKING ══
+-- Tracking
 local tracked={}
+local essenceFound=false
+
+local function foundEssence()
+    essenceFound=true
+    HopBtn.Text="✅  ESSENCE FOUND!"
+    HopBtn.TextColor3=Color3.fromRGB(80,255,120)
+    dot.BackgroundColor3=Color3.fromRGB(80,255,120)
+end
 
 local function registerEssence(obj,rarity)
     if tracked[obj] then return end
+    foundEssence()
     local bb,bbDist=addESP(obj,rarity)
     local row,rowDist=addRow(obj.Name,rarity)
     tracked[obj]={bb=bb,row=row}
@@ -253,117 +250,75 @@ end
 SE.ChildAdded:Connect(checkChild)
 for _,obj in ipairs(SE:GetChildren()) do checkChild(obj) end
 
--- ══ SERVER HOPPER ══
+-- Auto server hop
 local hopping=false
 
-local function serverHop()
-    if hopping then return end
+local function stopHop()
+    hopping=false
+    if not essenceFound then
+        HopBtn.Text="🔍  SERVER HOP"
+        HopBtn.TextColor3=Color3.fromRGB(180,180,220)
+    end
+end
+
+local function doHop()
+    if hopping then stopHop() return end
+    if essenceFound then return end
     hopping=true
-    HopBtn.Text="⏳  SEARCHING..." HopBtn.TextColor3=Color3.fromRGB(255,200,80)
+    HopBtn.Text="⏳  HOPPING..."
+    HopBtn.TextColor3=Color3.fromRGB(255,200,80)
     dot.BackgroundColor3=Color3.fromRGB(255,200,80)
 
     task.spawn(function()
         local placeId=game.PlaceId
-        local api="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
         local cursor=""
-        local attempts=0
-        local maxAttempts=20
 
-        while attempts<maxAttempts do
-            attempts=attempts+1
-
-            -- Check current server first before hopping
-            if #SE:GetChildren()>0 then
-                for _,obj in ipairs(SE:GetChildren()) do
-                    if getRarity(obj.Name) then
-                        HopBtn.Text="✅  FOUND HERE!"
-                        HopBtn.TextColor3=Color3.fromRGB(80,255,120)
-                        hopping=false
-return
-                        task.delay(3,function()
-                            HopBtn.Text="🔍  SERVER HOP"
-                            HopBtn.TextColor3=Color3.fromRGB(180,180,220)
-                            dot.BackgroundColor3=Color3.fromRGB(80,255,120)
-                        end)
-                        return
-                    end
-                end
-            end
-
+        while hopping and not essenceFound do
             local ok,raw=pcall(function()
-                return game:HttpGet(api..(cursor~="" and "&cursor="..cursor or ""))
+                return game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor~="" and"&cursor="..cursor or""))
             end)
-            if not ok then task.wait(1) continue end
+            if not ok then task.wait(2) continue end
 
             local ok2,data=pcall(function() return HttpService:JSONDecode(raw) end)
-            if not ok2 or not data or not data.data then task.wait(1) continue end
+            if not ok2 or not data or not data.data then task.wait(2) continue end
 
-            -- Shuffle servers for variety
             local servers=data.data
+            -- Shuffle
             for i=#servers,2,-1 do
                 local j=math.random(1,i)
                 servers[i],servers[j]=servers[j],servers[i]
             end
 
             for _,server in ipairs(servers) do
+                if not hopping or essenceFound then break end
                 if server.id~=game.JobId and server.playing and server.maxPlayers and server.playing<server.maxPlayers then
-                    HopBtn.Text="🚀  HOPPING..."
+                    HopBtn.Text="🚀  JOINING..."
                     HopBtn.TextColor3=Color3.fromRGB(80,180,255)
                     task.wait(0.5)
                     pcall(function()
                         TeleportService:TeleportToPlaceInstance(placeId,server.id,LocalPlayer)
                     end)
-                    task.wait(5)
-                    break
+                    task.wait(8)
                 end
             end
 
             cursor=data.nextPageCursor or ""
-            if cursor=="" then cursor="" attempts=maxAttempts end
-            task.wait(0.3)
+            if cursor=="" then cursor="" end
+            task.wait(0.5)
         end
-
-        -- Reset if nothing found
-        HopBtn.Text="🔍  SERVER HOP"
-        HopBtn.TextColor3=Color3.fromRGB(180,180,220)
-        dot.BackgroundColor3=Color3.fromRGB(80,255,120)
-        hopping=false
     end)
 end
 
-HopBtn.MouseButton1Click:Connect(function()
-    if hopping then
-        hopping = false
-        HopBtn.Text = "🔍  SERVER HOP"
-        HopBtn.TextColor3 = Color3.fromRGB(180,180,220)
-    else
-        serverHop()
-    end
-end)
-HopBtn.TouchTap:Connect(function()
-    if hopping then
-        hopping = false
-        HopBtn.Text = "🔍  SERVER HOP"
-        HopBtn.TextColor3 = Color3.fromRGB(180,180,220)
-    else
-        serverHop()
-    end
-end)
+-- Button toggles hop on/off
+HopBtn.MouseButton1Click:Connect(doHop)
+HopBtn.TouchTap:Connect(doHop)
 
--- Auto start hopping on load, stop when essence found
+-- Auto start hopping on load after 4s if no essence found
 task.spawn(function()
-    task.wait(4) -- wait for game to fully load
-    local found = false
-    for _, obj in ipairs(SE:GetChildren()) do
-        if getRarity(obj.Name) then found = true break end
-    end
-    if not found then
-        serverHop()
-    else
-        HopBtn.Text = "✅  FOUND HERE!"
-        HopBtn.TextColor3 = Color3.fromRGB(80,255,120)
+    task.wait(4)
+    if not essenceFound then
+        doHop()
     end
 end)
--- Mobile tap support
 
-print("✅ [EssenceNotifier] Ready — drag the panel to move it | Press SERVER HOP to find essences")
+print("✅ [EssenceNotifier] Loaded — auto hopping until essence found")
