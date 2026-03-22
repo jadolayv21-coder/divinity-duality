@@ -1,418 +1,319 @@
--- ══════════════════════════════════════════════════════════════
---  Divine Duality Elemental | Essence Notifier v3
---  • Lightweight — no Heartbeat loop
---  • Main GUI panel showing all active spawned essences
---  • Distance updates every 0.5s via task.spawn (not Heartbeat)
---  • Simple highlight + billboard, no SelectionBox lag
--- ══════════════════════════════════════════════════════════════
+-- Divine Duality Elemental | Essence Notifier + Server Hopper
+local Players=game:GetService("Players")
+local TweenService=game:GetService("TweenService")
+local HttpService=game:GetService("HttpService")
+local TeleportService=game:GetService("TeleportService")
+local UIS=game:GetService("UserInputService")
+local LocalPlayer=Players.LocalPlayer
+local PlayerGui=LocalPlayer:WaitForChild("PlayerGui")
 
-local Players      = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer  = Players.LocalPlayer
-local PlayerGui    = LocalPlayer:WaitForChild("PlayerGui")
+local LEGENDARY={Aether=true,Arcane=true,Aurora=true,Digital=true,Lunar=true}
+local DIVINE={Destruction=true,Cosmic=true,Spatial=true,Starscourge=true,Time=true}
+local COLOR={Legendary=Color3.fromRGB(255,170,0),Divine=Color3.fromRGB(180,80,255)}
 
--- ══════════════════════════════════════════════════════════════
---  WHITELIST
--- ══════════════════════════════════════════════════════════════
-local LEGENDARY = { Aether=true, Arcane=true, Aurora=true, Digital=true, Lunar=true }
-local DIVINE    = { Destruction=true, Cosmic=true, Spatial=true, Starscourge=true, Time=true }
+local function getRarity(n) if LEGENDARY[n] then return"Legendary" end if DIVINE[n] then return"Divine" end end
+local function getPos(o) if o:IsA("Model") then local p=o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart") return p and p.Position elseif o:IsA("BasePart") then return o.Position end end
+local function getMyPos() local c=LocalPlayer.Character local r=c and c:FindFirstChild("HumanoidRootPart") return r and r.Position end
 
-local COLOR = {
-    Legendary = Color3.fromRGB(255, 170, 0),
-    Divine    = Color3.fromRGB(180, 80, 255),
-}
+local SE=workspace:WaitForChild("SpawnedEssences",30)
+if not SE then warn("[Notifier] SpawnedEssences not found!") return end
 
-local function getRarity(name)
-    if LEGENDARY[name] then return "Legendary" end
-    if DIVINE[name]    then return "Divine"    end
-    return nil
-end
+if PlayerGui:FindFirstChild("EN") then PlayerGui:FindFirstChild("EN"):Destroy() end
 
-local function getPos(obj)
-    if obj:IsA("Model") then
-        local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-        return p and p.Position
-    elseif obj:IsA("BasePart") then
-        return obj.Position
+local SG=Instance.new("ScreenGui")
+SG.Name="EN" SG.ResetOnSpawn=false SG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling SG.Parent=PlayerGui
+
+-- ══ PANEL ══
+local Panel=Instance.new("Frame")
+Panel.Name="Panel" Panel.Size=UDim2.new(0,240,0,36) Panel.Position=UDim2.new(0,12,1,-220)
+Panel.BackgroundColor3=Color3.fromRGB(10,10,16) Panel.BackgroundTransparency=0.1 Panel.BorderSizePixel=0 Panel.Parent=SG
+Instance.new("UICorner",Panel).CornerRadius=UDim.new(0,10)
+local us=Instance.new("UIStroke",Panel) us.Color=Color3.fromRGB(80,80,120) us.Thickness=1 us.Transparency=0.5
+
+-- ══ DRAG LOGIC ══
+local dragging,dragStart,startPos=false,nil,nil
+Panel.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        dragging=true dragStart=i.Position startPos=Panel.Position
     end
-end
+end)
+Panel.InputEnded:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        dragging=false
+    end
+end)
+UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+        local d=i.Position-dragStart
+        Panel.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
+    end
+end)
 
-local function getMyPos()
-    local c = LocalPlayer.Character
-    local r = c and c:FindFirstChild("HumanoidRootPart")
-    return r and r.Position
-end
+-- ══ HEADER ══
+local Hdr=Instance.new("Frame")
+Hdr.Size=UDim2.new(1,0,0,36) Hdr.BackgroundColor3=Color3.fromRGB(20,20,32) Hdr.BorderSizePixel=0 Hdr.Parent=Panel
+Instance.new("UICorner",Hdr).CornerRadius=UDim.new(0,10)
+local hf=Instance.new("Frame") hf.Size=UDim2.new(1,0,0,10) hf.Position=UDim2.new(0,0,1,-10) hf.BackgroundColor3=Color3.fromRGB(20,20,32) hf.BorderSizePixel=0 hf.Parent=Hdr
+local ht=Instance.new("TextLabel")
+ht.Size=UDim2.new(1,-12,1,0) ht.Position=UDim2.new(0,12,0,0) ht.BackgroundTransparency=1
+ht.Font=Enum.Font.GothamBold ht.TextSize=11 ht.TextColor3=Color3.fromRGB(200,200,220)
+ht.Text="✦ ESSENCE TRACKER" ht.TextXAlignment=Enum.TextXAlignment.Left ht.Parent=Hdr
+local dot=Instance.new("Frame")
+dot.Size=UDim2.new(0,7,0,7) dot.Position=UDim2.new(1,-14,0.5,-3)
+dot.BackgroundColor3=Color3.fromRGB(80,255,120) dot.BorderSizePixel=0 dot.Parent=Hdr
+Instance.new("UICorner",dot).CornerRadius=UDim.new(1,0)
 
--- ══════════════════════════════════════════════════════════════
---  WAIT FOR SpawnedEssences
--- ══════════════════════════════════════════════════════════════
-local SpawnedEssences = workspace:WaitForChild("SpawnedEssences", 30)
-if not SpawnedEssences then
-    warn("[EssenceNotifier] SpawnedEssences not found!")
-    return
-end
+-- ══ EMPTY LABEL ══
+local EL=Instance.new("TextLabel")
+EL.Name="Empty" EL.Size=UDim2.new(1,-12,0,24) EL.Position=UDim2.new(0,8,0,42)
+EL.BackgroundTransparency=1 EL.Font=Enum.Font.Gotham EL.TextSize=10
+EL.TextColor3=Color3.fromRGB(100,100,120) EL.Text="No legendary/divine essences active"
+EL.TextXAlignment=Enum.TextXAlignment.Left EL.Parent=Panel
 
--- ══════════════════════════════════════════════════════════════
---  BUILD MAIN GUI
--- ══════════════════════════════════════════════════════════════
--- Destroy old instance if re-running
-if PlayerGui:FindFirstChild("EssenceNotifier") then
-    PlayerGui:FindFirstChild("EssenceNotifier"):Destroy()
-end
+-- ══ ESSENCE LIST ══
+local List=Instance.new("Frame")
+List.Size=UDim2.new(1,-8,0,0) List.Position=UDim2.new(0,4,0,40)
+List.BackgroundTransparency=1 List.ClipsDescendants=true List.Parent=Panel
+local UL=Instance.new("UIListLayout") UL.SortOrder=Enum.SortOrder.LayoutOrder UL.Padding=UDim.new(0,3) UL.Parent=List
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name           = "EssenceNotifier"
-ScreenGui.ResetOnSpawn   = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent         = PlayerGui
+-- ══ HOP BUTTON ══
+local HopBtn=Instance.new("TextButton")
+HopBtn.Name="HopBtn" HopBtn.Size=UDim2.new(1,-8,0,28) HopBtn.Position=UDim2.new(0,4,0,0)
+HopBtn.BackgroundColor3=Color3.fromRGB(30,30,50) HopBtn.BorderSizePixel=0
+HopBtn.Font=Enum.Font.GothamBold HopBtn.TextSize=11 HopBtn.TextColor3=Color3.fromRGB(180,180,220)
+HopBtn.Text="🔍  SERVER HOP" HopBtn.Parent=Panel
+Instance.new("UICorner",HopBtn).CornerRadius=UDim.new(0,6)
+local hs=Instance.new("UIStroke",HopBtn) hs.Color=Color3.fromRGB(80,80,140) hs.Thickness=1
 
--- ── Panel (bottom-left) ──────────────────────────────────────
-local Panel = Instance.new("Frame")
-Panel.Name                   = "Panel"
-Panel.Size                   = UDim2.new(0, 260, 0, 36) -- starts small, grows with entries
-Panel.Position               = UDim2.new(0, 16, 1, -220)
-Panel.BackgroundColor3       = Color3.fromRGB(10, 10, 16)
-Panel.BackgroundTransparency = 0.15
-Panel.BorderSizePixel        = 0
-Panel.Parent                 = ScreenGui
-Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 10)
-
--- Stroke border
-local stroke = Instance.new("UIStroke")
-stroke.Color         = Color3.fromRGB(80, 80, 120)
-stroke.Thickness     = 1
-stroke.Transparency  = 0.5
-stroke.Parent        = Panel
-
--- Header bar
-local Header = Instance.new("Frame")
-Header.Size             = UDim2.new(1, 0, 0, 36)
-Header.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-Header.BorderSizePixel  = 0
-Header.Parent           = Panel
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
-
--- Cover bottom corners of header
-local headerFix = Instance.new("Frame")
-headerFix.Size             = UDim2.new(1, 0, 0, 10)
-headerFix.Position         = UDim2.new(0, 0, 1, -10)
-headerFix.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-headerFix.BorderSizePixel  = 0
-headerFix.Parent           = Header
-
-local HeaderTitle = Instance.new("TextLabel")
-HeaderTitle.Size                   = UDim2.new(1, -12, 1, 0)
-HeaderTitle.Position               = UDim2.new(0, 12, 0, 0)
-HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Font                   = Enum.Font.GothamBold
-HeaderTitle.TextSize               = 12
-HeaderTitle.TextColor3             = Color3.fromRGB(200, 200, 220)
-HeaderTitle.Text                   = "✦ ESSENCE TRACKER"
-HeaderTitle.TextXAlignment         = Enum.TextXAlignment.Left
-HeaderTitle.Parent                 = Header
-
--- Live dot
-local Dot = Instance.new("Frame")
-Dot.Size             = UDim2.new(0, 7, 0, 7)
-Dot.Position         = UDim2.new(1, -16, 0.5, -3)
-Dot.BackgroundColor3 = Color3.fromRGB(80, 255, 120)
-Dot.BorderSizePixel  = 0
-Dot.Parent           = Header
-Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
-
--- Empty state label
-local EmptyLabel = Instance.new("TextLabel")
-EmptyLabel.Name                   = "EmptyLabel"
-EmptyLabel.Size                   = UDim2.new(1, -16, 0, 28)
-EmptyLabel.Position               = UDim2.new(0, 8, 0, 40)
-EmptyLabel.BackgroundTransparency = 1
-EmptyLabel.Font                   = Enum.Font.Gotham
-EmptyLabel.TextSize               = 11
-EmptyLabel.TextColor3             = Color3.fromRGB(100, 100, 120)
-EmptyLabel.Text                   = "No legendary/divine essences active"
-EmptyLabel.TextXAlignment         = Enum.TextXAlignment.Left
-EmptyLabel.Parent                 = Panel
-
--- Essence list container
-local EssenceList = Instance.new("Frame")
-EssenceList.Name                   = "EssenceList"
-EssenceList.Size                   = UDim2.new(1, -8, 0, 0)
-EssenceList.Position               = UDim2.new(0, 4, 0, 40)
-EssenceList.BackgroundTransparency = 1
-EssenceList.ClipsDescendants       = true
-EssenceList.Parent                 = Panel
-
-local UIList = Instance.new("UIListLayout")
-UIList.SortOrder    = Enum.SortOrder.LayoutOrder
-UIList.Padding      = UDim.new(0, 4)
-UIList.Parent       = EssenceList
-
--- Auto-resize panel to fit entries
-local HEADER_H  = 36
-local PADDING   = 8
-local EMPTY_H   = 36
-local ENTRY_H   = 44
-
-local function resizePanel()
-    local count = #EssenceList:GetChildren() - 1 -- minus UIListLayout
-    if count <= 0 then
-        EmptyLabel.Visible = true
-        EssenceList.Size   = UDim2.new(1, -8, 0, 0)
-        Panel.Size         = UDim2.new(0, 260, 0, HEADER_H + PADDING + EMPTY_H)
+local EH=44
+local function resize()
+    local n=#List:GetChildren()-1
+    local hopH=32
+    if n<=0 then
+        EL.Visible=true List.Size=UDim2.new(1,-8,0,0)
+        List.Position=UDim2.new(0,4,0,40)
+        HopBtn.Position=UDim2.new(0,4,0,68)
+        Panel.Size=UDim2.new(0,240,0,104)
     else
-        EmptyLabel.Visible = false
-        local h = count * ENTRY_H + (count - 1) * 4
-        EssenceList.Size  = UDim2.new(1, -8, 0, h)
-        Panel.Size        = UDim2.new(0, 260, 0, HEADER_H + PADDING + h + PADDING)
+        EL.Visible=false
+        local h=n*EH+(n-1)*3
+        List.Size=UDim2.new(1,-8,0,h)
+        List.Position=UDim2.new(0,4,0,40)
+        HopBtn.Position=UDim2.new(0,4,0,44+h+4)
+        Panel.Size=UDim2.new(0,240,0,44+h+hopH+12)
     end
 end
-resizePanel()
+resize()
 
--- ── Pop-in notification (top right) ─────────────────────────
-local function showPopup(name, rarity)
-    local color = COLOR[rarity]
-
-    local popup = Instance.new("Frame")
-    popup.Size                   = UDim2.new(0, 300, 0, 60)
-    popup.Position               = UDim2.new(1, 20, 0, 16)
-    popup.BackgroundColor3       = Color3.fromRGB(12, 12, 20)
-    popup.BackgroundTransparency = 0.1
-    popup.BorderSizePixel        = 0
-    popup.Parent                 = ScreenGui
-    Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 8)
-
-    local bar = Instance.new("Frame")
-    bar.Size             = UDim2.new(0, 4, 1, 0)
-    bar.BackgroundColor3 = color
-    bar.BorderSizePixel  = 0
-    bar.Parent           = popup
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 4)
-
-    local t1 = Instance.new("TextLabel")
-    t1.Size                   = UDim2.new(1, -16, 0, 20)
-    t1.Position               = UDim2.new(0, 12, 0, 6)
-    t1.BackgroundTransparency = 1
-    t1.Font                   = Enum.Font.GothamBold
-    t1.TextSize               = 10
-    t1.TextColor3             = color
-    t1.Text                   = (rarity == "Divine" and "✦ DIVINE" or "★ LEGENDARY") .. " ESSENCE SPAWNED"
-    t1.TextXAlignment         = Enum.TextXAlignment.Left
-    t1.Parent                 = popup
-
-    local t2 = Instance.new("TextLabel")
-    t2.Size                   = UDim2.new(1, -16, 0, 22)
-    t2.Position               = UDim2.new(0, 12, 0, 24)
-    t2.BackgroundTransparency = 1
-    t2.Font                   = Enum.Font.GothamBold
-    t2.TextSize               = 16
-    t2.TextColor3             = Color3.fromRGB(245, 245, 255)
-    t2.Text                   = name
-    t2.TextXAlignment         = Enum.TextXAlignment.Left
-    t2.Parent                 = popup
-
-    -- Slide in
-    TweenService:Create(popup, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        { Position = UDim2.new(1, -316, 0, 16) }):Play()
-
-    -- Slide out after 6s
-    task.delay(6, function()
-        local t = TweenService:Create(popup, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-            { Position = UDim2.new(1, 20, 0, 16) })
-        t:Play()
-        t.Completed:Connect(function() popup:Destroy() end)
+-- ══ POPUP ══
+local function showPopup(name,rarity)
+    local color=COLOR[rarity]
+    local p=Instance.new("Frame")
+    p.Size=UDim2.new(0,280,0,56) p.Position=UDim2.new(1,20,0,16)
+    p.BackgroundColor3=Color3.fromRGB(12,12,20) p.BackgroundTransparency=0.1
+    p.BorderSizePixel=0 p.Parent=SG
+    Instance.new("UICorner",p).CornerRadius=UDim.new(0,8)
+    local b=Instance.new("Frame") b.Size=UDim2.new(0,4,1,0) b.BackgroundColor3=color b.BorderSizePixel=0 b.Parent=p
+    Instance.new("UICorner",b).CornerRadius=UDim.new(0,4)
+    local t1=Instance.new("TextLabel")
+    t1.Size=UDim2.new(1,-14,0,18) t1.Position=UDim2.new(0,10,0,5) t1.BackgroundTransparency=1
+    t1.Font=Enum.Font.GothamBold t1.TextSize=10 t1.TextColor3=color
+    t1.Text=(rarity=="Divine" and"✦ DIVINE" or"★ LEGENDARY").." ESSENCE SPAWNED"
+    t1.TextXAlignment=Enum.TextXAlignment.Left t1.Parent=p
+    local t2=Instance.new("TextLabel")
+    t2.Size=UDim2.new(1,-14,0,22) t2.Position=UDim2.new(0,10,0,22) t2.BackgroundTransparency=1
+    t2.Font=Enum.Font.GothamBold t2.TextSize=15 t2.TextColor3=Color3.fromRGB(245,245,255)
+    t2.Text=name t2.TextXAlignment=Enum.TextXAlignment.Left t2.Parent=p
+    TweenService:Create(p,TweenInfo.new(0.3,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Position=UDim2.new(1,-296,0,16)}):Play()
+    task.delay(6,function()
+        local t=TweenService:Create(p,TweenInfo.new(0.25,Enum.EasingStyle.Quint,Enum.EasingDirection.In),{Position=UDim2.new(1,20,0,16)})
+        t:Play() t.Completed:Connect(function() p:Destroy() end)
     end)
 end
 
--- ══════════════════════════════════════════════════════════════
---  ESP (lightweight BillboardGui only — no SelectionBox)
--- ══════════════════════════════════════════════════════════════
-local function addESP(obj, rarity)
-    local color = COLOR[rarity]
-    local adorn = obj:IsA("Model")
-        and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart"))
-        or obj
+-- ══ ESP ══
+local function addESP(obj,rarity)
+    local color=COLOR[rarity]
+    local adorn=obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
     if not adorn then return nil end
-
-    local bb = Instance.new("BillboardGui")
-    bb.Size        = UDim2.new(0, 140, 0, 36)
-    bb.StudsOffset = Vector3.new(0, 5, 0)
-    bb.AlwaysOnTop = true
-    bb.Adornee     = adorn
-    bb.Parent      = workspace
-
-    local bg = Instance.new("Frame")
-    bg.Size                   = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3       = Color3.fromRGB(10, 10, 15)
-    bg.BackgroundTransparency = 0.25
-    bg.BorderSizePixel        = 0
-    bg.Parent                 = bb
-    Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 6)
-
-    local nl = Instance.new("TextLabel")
-    nl.Size                   = UDim2.new(1, 0, 0.55, 0)
-    nl.BackgroundTransparency = 1
-    nl.Font                   = Enum.Font.GothamBold
-    nl.TextSize               = 12
-    nl.TextColor3             = color
-    nl.Text                   = obj.Name
-    nl.TextXAlignment         = Enum.TextXAlignment.Center
-    nl.Parent                 = bg
-
-    local dl = Instance.new("TextLabel")
-    dl.Name                   = "Dist"
-    dl.Size                   = UDim2.new(1, 0, 0.45, 0)
-    dl.Position               = UDim2.new(0, 0, 0.55, 0)
-    dl.BackgroundTransparency = 1
-    dl.Font                   = Enum.Font.Gotham
-    dl.TextSize               = 10
-    dl.TextColor3             = Color3.fromRGB(210, 210, 220)
-    dl.Text                   = "-- m"
-    dl.TextXAlignment         = Enum.TextXAlignment.Center
-    dl.Parent                 = bg
-
-    return bb, dl
+    local bb=Instance.new("BillboardGui")
+    bb.Size=UDim2.new(0,140,0,36) bb.StudsOffset=Vector3.new(0,5,0)
+    bb.AlwaysOnTop=true bb.Adornee=adorn bb.Parent=workspace
+    local bg=Instance.new("Frame")
+    bg.Size=UDim2.new(1,0,1,0) bg.BackgroundColor3=Color3.fromRGB(10,10,15)
+    bg.BackgroundTransparency=0.25 bg.BorderSizePixel=0 bg.Parent=bb
+    Instance.new("UICorner",bg).CornerRadius=UDim.new(0,6)
+    local nl=Instance.new("TextLabel")
+    nl.Size=UDim2.new(1,0,0.55,0) nl.BackgroundTransparency=1
+    nl.Font=Enum.Font.GothamBold nl.TextSize=12 nl.TextColor3=color
+    nl.Text=obj.Name nl.TextXAlignment=Enum.TextXAlignment.Center nl.Parent=bg
+    local dl=Instance.new("TextLabel")
+    dl.Name="Dist" dl.Size=UDim2.new(1,0,0.45,0) dl.Position=UDim2.new(0,0,0.55,0)
+    dl.BackgroundTransparency=1 dl.Font=Enum.Font.Gotham dl.TextSize=10
+    dl.TextColor3=Color3.fromRGB(210,210,220) dl.Text="-- m"
+    dl.TextXAlignment=Enum.TextXAlignment.Center dl.Parent=bg
+    return bb,dl
 end
 
--- ══════════════════════════════════════════════════════════════
---  PANEL ENTRY ROW
--- ══════════════════════════════════════════════════════════════
-local function addPanelEntry(name, rarity)
-    local color = COLOR[rarity]
-
-    local row = Instance.new("Frame")
-    row.Name             = name
-    row.Size             = UDim2.new(1, 0, 0, ENTRY_H)
-    row.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
-    row.BorderSizePixel  = 0
-    row.Parent           = EssenceList
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-
-    -- Colored left bar
-    local bar = Instance.new("Frame")
-    bar.Size             = UDim2.new(0, 3, 0.7, 0)
-    bar.Position         = UDim2.new(0, 0, 0.15, 0)
-    bar.BackgroundColor3 = color
-    bar.BorderSizePixel  = 0
-    bar.Parent           = row
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 3)
-
-    -- Rarity badge
-    local badge = Instance.new("TextLabel")
-    badge.Size                   = UDim2.new(0, 70, 0, 14)
-    badge.Position               = UDim2.new(0, 10, 0, 6)
-    badge.BackgroundColor3       = color
-    badge.BackgroundTransparency = 0.75
-    badge.BorderSizePixel        = 0
-    badge.Font                   = Enum.Font.GothamBold
-    badge.TextSize               = 9
-    badge.TextColor3             = color
-    badge.Text                   = rarity:upper()
-    badge.TextXAlignment         = Enum.TextXAlignment.Center
-    badge.Parent                 = row
-    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 3)
-
-    -- Name
-    local nl = Instance.new("TextLabel")
-    nl.Size                   = UDim2.new(0, 150, 0, 18)
-    nl.Position               = UDim2.new(0, 10, 0, 22)
-    nl.BackgroundTransparency = 1
-    nl.Font                   = Enum.Font.GothamBold
-    nl.TextSize               = 14
-    nl.TextColor3             = Color3.fromRGB(240, 240, 255)
-    nl.Text                   = name
-    nl.TextXAlignment         = Enum.TextXAlignment.Left
-    nl.Parent                 = row
-
-    -- Distance (right side)
-    local dl = Instance.new("TextLabel")
-    dl.Name                   = "Dist"
-    dl.Size                   = UDim2.new(0, 72, 1, 0)
-    dl.Position               = UDim2.new(1, -76, 0, 0)
-    dl.BackgroundTransparency = 1
-    dl.Font                   = Enum.Font.GothamBold
-    dl.TextSize               = 13
-    dl.TextColor3             = Color3.fromRGB(180, 180, 200)
-    dl.Text                   = "-- m"
-    dl.TextXAlignment         = Enum.TextXAlignment.Right
-    dl.Parent                 = row
-
-    resizePanel()
-    return row, dl
+-- ══ PANEL ROW ══
+local function addRow(name,rarity)
+    local color=COLOR[rarity]
+    local row=Instance.new("Frame")
+    row.Name=name row.Size=UDim2.new(1,0,0,EH)
+    row.BackgroundColor3=Color3.fromRGB(18,18,28) row.BorderSizePixel=0 row.Parent=List
+    Instance.new("UICorner",row).CornerRadius=UDim.new(0,6)
+    local bar=Instance.new("Frame")
+    bar.Size=UDim2.new(0,3,0.7,0) bar.Position=UDim2.new(0,0,0.15,0)
+    bar.BackgroundColor3=color bar.BorderSizePixel=0 bar.Parent=row
+    Instance.new("UICorner",bar).CornerRadius=UDim.new(0,3)
+    local badge=Instance.new("TextLabel")
+    badge.Size=UDim2.new(0,68,0,14) badge.Position=UDim2.new(0,8,0,5)
+    badge.BackgroundColor3=color badge.BackgroundTransparency=0.75 badge.BorderSizePixel=0
+    badge.Font=Enum.Font.GothamBold badge.TextSize=9 badge.TextColor3=color
+    badge.Text=rarity:upper() badge.TextXAlignment=Enum.TextXAlignment.Center badge.Parent=row
+    Instance.new("UICorner",badge).CornerRadius=UDim.new(0,3)
+    local nl=Instance.new("TextLabel")
+    nl.Size=UDim2.new(0,140,0,18) nl.Position=UDim2.new(0,8,0,21)
+    nl.BackgroundTransparency=1 nl.Font=Enum.Font.GothamBold nl.TextSize=13
+    nl.TextColor3=Color3.fromRGB(240,240,255) nl.Text=name
+    nl.TextXAlignment=Enum.TextXAlignment.Left nl.Parent=row
+    local dl=Instance.new("TextLabel")
+    dl.Name="Dist" dl.Size=UDim2.new(0,70,1,0) dl.Position=UDim2.new(1,-74,0,0)
+    dl.BackgroundTransparency=1 dl.Font=Enum.Font.GothamBold dl.TextSize=12
+    dl.TextColor3=Color3.fromRGB(180,180,200) dl.Text="-- m"
+    dl.TextXAlignment=Enum.TextXAlignment.Right dl.Parent=row
+    resize()
+    return row,dl
 end
 
--- ══════════════════════════════════════════════════════════════
---  SOUND
--- ══════════════════════════════════════════════════════════════
+-- ══ SOUND ══
 local function playAlert(rarity)
-    local s = Instance.new("Sound")
-    s.SoundId = rarity == "Divine" and "rbxassetid://9118820654" or "rbxassetid://4959946022"
-    s.Volume  = 0.7
-    s.Parent  = workspace
-    s:Play()
-    game:GetService("Debris"):AddItem(s, 4)
+    local s=Instance.new("Sound")
+    s.SoundId=rarity=="Divine" and"rbxassetid://9118820654" or"rbxassetid://4959946022"
+    s.Volume=0.7 s.Parent=workspace s:Play()
+    game:GetService("Debris"):AddItem(s,4)
 end
 
--- ══════════════════════════════════════════════════════════════
---  TRACKING
--- ══════════════════════════════════════════════════════════════
-local tracked = {} -- obj -> { bb, bbDist, row, rowDist, loop }
+-- ══ TRACKING ══
+local tracked={}
 
-local function registerEssence(obj, rarity)
+local function registerEssence(obj,rarity)
     if tracked[obj] then return end
-
-    local bb, bbDist     = addESP(obj, rarity)
-    local row, rowDist   = addPanelEntry(obj.Name, rarity)
-
-    -- Distance update loop — every 0.5s, much lighter than Heartbeat
-    local loop = task.spawn(function()
+    local bb,bbDist=addESP(obj,rarity)
+    local row,rowDist=addRow(obj.Name,rarity)
+    tracked[obj]={bb=bb,row=row}
+    task.spawn(function()
         while obj and obj.Parent do
-            local myPos = getMyPos()
-            local esPos = getPos(obj)
-            if myPos and esPos then
-                local d = math.floor((myPos - esPos).Magnitude)
-                local txt = d .. " m"
-                if rowDist and rowDist.Parent then rowDist.Text = txt end
-                if bbDist  and bbDist.Parent  then bbDist.Text  = txt end
+            local my=getMyPos() local es=getPos(obj)
+            if my and es then
+                local d=math.floor((my-es).Magnitude)
+                if rowDist and rowDist.Parent then rowDist.Text=d.." m" end
+                if bbDist and bbDist.Parent then bbDist.Text=d.." m" end
             end
             task.wait(0.5)
         end
     end)
-
-    tracked[obj] = { bb = bb, row = row, loop = loop }
-
-    showPopup(obj.Name, rarity)
+    showPopup(obj.Name,rarity)
     playAlert(rarity)
-    print(("[EssenceNotifier] ✅ %s (%s) in SpawnedEssences"):format(obj.Name, rarity))
-
-    -- Cleanup when essence is removed
-    obj.AncestryChanged:Connect(function(_, parent)
-        if parent ~= nil then return end
-        local data = tracked[obj]
-        if not data then return end
-        if data.bb  and data.bb.Parent  then data.bb:Destroy()  end
-        if data.row and data.row.Parent then data.row:Destroy() end
-        tracked[obj] = nil
-        resizePanel()
-        print(("[EssenceNotifier] 🗑 %s despawned/taken"):format(obj.Name))
+    obj.AncestryChanged:Connect(function(_,p)
+        if p~=nil then return end
+        local d=tracked[obj]
+        if d then
+            if d.bb and d.bb.Parent then d.bb:Destroy() end
+            if d.row and d.row.Parent then d.row:Destroy() end
+            tracked[obj]=nil resize()
+        end
     end)
 end
 
--- ══════════════════════════════════════════════════════════════
---  WATCH SpawnedEssences ONLY
--- ══════════════════════════════════════════════════════════════
 local function checkChild(obj)
-    if obj.Parent ~= SpawnedEssences then return end
-    local rarity = getRarity(obj.Name)
-    if rarity then
-        task.wait(0.1)
-        registerEssence(obj, rarity)
-    end
+    if obj.Parent~=SE then return end
+    local r=getRarity(obj.Name)
+    if r then task.wait(0.1) registerEssence(obj,r) end
 end
 
-SpawnedEssences.ChildAdded:Connect(checkChild)
+SE.ChildAdded:Connect(checkChild)
+for _,obj in ipairs(SE:GetChildren()) do checkChild(obj) end
 
-for _, obj in ipairs(SpawnedEssences:GetChildren()) do
-    checkChild(obj)
+-- ══ SERVER HOPPER ══
+local hopping=false
+
+local function serverHop()
+    if hopping then return end
+    hopping=true
+    HopBtn.Text="⏳  SEARCHING..." HopBtn.TextColor3=Color3.fromRGB(255,200,80)
+    dot.BackgroundColor3=Color3.fromRGB(255,200,80)
+
+    task.spawn(function()
+        local placeId=game.PlaceId
+        local api="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
+        local cursor=""
+        local attempts=0
+        local maxAttempts=20
+
+        while attempts<maxAttempts do
+            attempts=attempts+1
+
+            -- Check current server first before hopping
+            if #SE:GetChildren()>0 then
+                for _,obj in ipairs(SE:GetChildren()) do
+                    if getRarity(obj.Name) then
+                        HopBtn.Text="✅  FOUND HERE!"
+                        HopBtn.TextColor3=Color3.fromRGB(80,255,120)
+                        hopping=false
+                        task.delay(3,function()
+                            HopBtn.Text="🔍  SERVER HOP"
+                            HopBtn.TextColor3=Color3.fromRGB(180,180,220)
+                            dot.BackgroundColor3=Color3.fromRGB(80,255,120)
+                        end)
+                        return
+                    end
+                end
+            end
+
+            local ok,raw=pcall(function()
+                return game:HttpGet(api..(cursor~="" and "&cursor="..cursor or ""))
+            end)
+            if not ok then task.wait(1) continue end
+
+            local ok2,data=pcall(function() return HttpService:JSONDecode(raw) end)
+            if not ok2 or not data or not data.data then task.wait(1) continue end
+
+            -- Shuffle servers for variety
+            local servers=data.data
+            for i=#servers,2,-1 do
+                local j=math.random(1,i)
+                servers[i],servers[j]=servers[j],servers[i]
+            end
+
+            for _,server in ipairs(servers) do
+                if server.id~=game.JobId and server.playing and server.maxPlayers and server.playing<server.maxPlayers then
+                    HopBtn.Text="🚀  HOPPING..."
+                    HopBtn.TextColor3=Color3.fromRGB(80,180,255)
+                    task.wait(0.5)
+                    pcall(function()
+                        TeleportService:TeleportToPlaceInstance(placeId,server.id,LocalPlayer)
+                    end)
+                    task.wait(5)
+                    break
+                end
+            end
+
+            cursor=data.nextPageCursor or ""
+            if cursor=="" then cursor="" attempts=maxAttempts end
+            task.wait(0.3)
+        end
+
+        -- Reset if nothing found
+        HopBtn.Text="🔍  SERVER HOP"
+        HopBtn.TextColor3=Color3.fromRGB(180,180,220)
+        dot.BackgroundColor3=Color3.fromRGB(80,255,120)
+        hopping=false
+    end)
 end
 
-print("✅ [EssenceNotifier] Ready — watching Workspace.SpawnedEssences")
+HopBtn.MouseButton1Click:Connect(serverHop)
+-- Mobile tap support
+HopBtn.TouchTap:Connect(serverHop)
+
+print("✅ [EssenceNotifier] Ready — drag the panel to move it | Press SERVER HOP to find essences")
