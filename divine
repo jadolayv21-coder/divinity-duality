@@ -1,4 +1,21 @@
--- Divine Duality Elemental | Essence Notifier + Server Hopper
+task.spawn(function()
+    task.wait(2)
+    game:GetService("TeleportService").TeleportInitFailed:Connect(function()
+        task.wait(3)
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
+    end)
+end)
+
+-- Re-run on teleport arrive
+if not _G.ENLoaded then
+    _G.ENLoaded = true
+    pcall(function()
+        game:GetService("TeleportService").LocalPlayerArrivedFromTeleport:Connect(function()
+            task.wait(3)
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
+        end)
+    end)
+end-- Divine Duality Elemental | Essence Notifier + Server Hopper
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
 local HttpService=game:GetService("HttpService")
