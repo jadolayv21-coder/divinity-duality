@@ -15,7 +15,8 @@ if not _G.ENLoaded then
             loadstring(game:HttpGet("https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"))()
         end)
     end)
-end-- Divine Duality Elemental | Essence Notifier + Server Hopper
+end
+-- Divine Duality Elemental | Essence Notifier + Server Hopper
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
 local HttpService=game:GetService("HttpService")
