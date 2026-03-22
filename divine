@@ -1,13 +1,4 @@
-_G.DIVINE_SCRIPT = "https://raw.githubusercontent.com/jadolayv21-coder/divinity-duality/main/divine"
-
-if not _G.DIVINE_HOOK then
-    _G.DIVINE_HOOK = true
-    game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(5)
-        if game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("EN") then return end
-        loadstring(game:HttpGet(_G.DIVINE_SCRIPT))()
-    end)
-end-- Divine Duality Elemental | Essence Notifier + Auto Server Hopper
+-- Divine Duality Elemental | Essence Notifier + Auto Server Hopper
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
 local HttpService=game:GetService("HttpService")
